@@ -3,14 +3,25 @@ import copy
 import re
 from collections import Counter
 
-with open('ta.txt', 'r', encoding='utf-8') as file:
-    text = [next(file) for _ in range(1250000)]
+with open('data.txt', 'r', encoding='utf-8') as file:
+    #text = [next(file) for _ in range(1250000)]
+    text = file.readlines()
+
+# Count the number of lines
+num_lines = len(text)
+
+# Count the number of words
+num_words = sum(len(line.split()) for line in text)
+
+print(f"Number of lines: {num_lines}")
+print(f"Number of words: {num_words}")
+
 
 #text = ['''இராமர் பாலம் ("Rama's Bridge") அல்லது ஆதாமின் பாலம் ("Adam's Bridge") என்பது தமிழ் நாட்டில் உள்ள இராமேஸ்வரத்திற்கும் இலங்கையில் உள்ள மன்னார் தீவுகளுக்கும் இடையே உள்ள சுண்ணாம்புக் கற்களால் ஆன ஆழமற்ற மேடுகளாகும். 30 கி.மீ. நீளம் கொண்ட இந்தப் பாலம், மன்னார் வளைகுடாவையும் (தென்மேற்கு) பாக் ஜலசந்தியையும் (வடகிழக்கு) பிரிக்கின்றது. இந்த பாலத்தில், கடல் ஆழம் சுமார் 3 முதல் 30 அடி வரையே உள்ளது. சில மேடுகள் கடல் மட்டத்திற்கு மேலும் உள்ளன. இது இராம சேது ("Ram Setu") என்றும் அழைக்கப்படுகிறது.''']
 
 def remove_parenthesis_text(lines):
     # Regular expression to match text within parentheses
-    pattern = r'\(.*?\)'
+    pattern = r'\(.*?\)|<\/?doc.*?>|[^ \u0B80-\u0BFF]'
     
     # Process each line and remove the parenthesis text
     cleaned_lines = [re.sub(pattern, '', line).strip() for line in lines]
@@ -128,24 +139,55 @@ def edit_one_letter(word):
 
 def get_corrections(word, probs, vocab, n=2):
     
-    
     suggestions = []
     n_best = []
-    print(edit_one_letter(word).intersection(vocab))
-    ### START CODE HERE ###
+    #print(edit_one_letter(word).intersection(vocab))
     if word in vocab:
-        return word
+        return 'Nil'
     suggestions = list( edit_one_letter(word).intersection(vocab))
-    print(suggestions)
-    ### END CODE HERE ###
+    #print(suggestions)
     n_best = sorted(
     [(word, probs[word]) for word in suggestions if word in probs],
     key=lambda x: x[1],
     reverse=True
 )[:n]
-    print(n_best)
-    print("entered word = ", word, "\nsuggestions = ", suggestions)
+    #print(suggestions)
+    #print("entered word = ", word, "\nsuggestions = ", n_best)
 
     return n_best
+
+#a=get_corrections("கன்ணீர்",probs,vocab,3)
+#a=get_corrections("கண்ணீர்",probs,vocab,3)
+
+corrected=0
+missed=0
+
+with open('index.txt', 'r') as file:
+    values = file.read()
+
+values_list = [int(value.strip()) for value in values.split(',')]
+index = set(values_list)
+#print(index)
+
+with open('noise.txt', 'r', encoding='utf-8') as file:
+    test_data = file.readlines()
+
+test_data = remove_parenthesis_text(test_data)
+for i in range(len(test_data)):
+    test_data[i]=test_data[i].split(" ")
+test_data = [[word for word in line if word] for line in test_data]
+
+word_cnt=0
+for i in range(len(test_data)):
+    for j in range(len(test_data[i])):
+        chk = get_corrections(test_data[i][j],probs,vocab)
+        if(((word_cnt not in index) and chk=='Nil') or ((word_cnt in index) and (chk!='Nil'))):
+            corrected+=1
+        else:
+            missed+=1
+        #print(word_cnt,chk)
+        word_cnt+=1
         
-get_corrections("கன்ணீர்",probs,vocab,3)
+print(corrected)
+print(missed)
+print(corrected*100/(corrected+missed),'%')

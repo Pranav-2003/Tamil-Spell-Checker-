@@ -1,11 +1,10 @@
-
 import os
 import re
 from collections import Counter
 import copy
 from tamil import utf8
 
-# Specify the folder path
+'''# Specify the folder path
 folder_path = "Tamil_Wikipedia_Articles/train/train"
 i = 0
 text=[]
@@ -24,7 +23,10 @@ for filename in os.listdir(folder_path):
                 i+=1
                 #print(f"Contents of {filename}:\n{text}\n")
         except Exception as e:
-            print(f"Error reading {filename}: {e}")
+            print(f"Error reading {filename}: {e}")'''
+
+with open('data.txt', 'r', encoding='utf-8') as file:
+    text = file.readlines()
 
 def remove_parenthesis_text(lines):
     # Regular expression to match text within parentheses
@@ -43,12 +45,6 @@ text = remove_parenthesis_text(text)
 
 text = [clean_line(line) for line in text]
 
-
-# with open("sample_500mb.txt", "w", encoding='utf-8') as file:
-#     # Write the content to the file
-#     for line in text:
-#         file.write(line)
-#         file.write('\n')
 
 words=[]
 for i in text:
@@ -76,8 +72,6 @@ def delete_letter(word):
         if len(letters)>i+1:
             new_word+=''.join(letters[i+1:])
         delete_l.append(new_word)
-
-    
 
     return delete_l
 
@@ -157,7 +151,7 @@ def get_corrections(word, probs, vocab, n=2):
     n_best = []
     ### START CODE HERE ###
     if word in vocab:
-        return word
+        return 'Nil'
     one_error_set=edit_one_letter(word)
     suggestions=one_error_set.intersection(vocab)
     one_error=list(one_error_set)
@@ -172,11 +166,44 @@ def get_corrections(word, probs, vocab, n=2):
     key=lambda x: x[1],
     reverse=True
 )[:n]
-    print(n_best)
-    print("entered word = ", word, "\nsuggestions = ", suggestions)
+    #print(suggestions)
+    #print("entered word = ", word, "\nsuggestions = ", n_best)
 
     return n_best
         
-get_corrections("தளைவர்",probs,vocab,3)
+#get_corrections("தளைவர்",probs,vocab,3)
 
+corrected=0
+missed=0
 
+with open('index.txt', 'r') as file:
+    values = file.read()
+
+values_list = [int(value.strip()) for value in values.split(',')]
+index = set(values_list)
+print(len(index))
+
+with open('2errornoise.txt', 'r', encoding='utf-8') as file:
+    test_data = file.readlines()
+
+test_data = remove_parenthesis_text(test_data)
+for i in range(len(test_data)):
+    test_data[i]=test_data[i].split(" ")
+test_data = [[word for word in line if word] for line in test_data]
+
+word_cnt=0
+for i in range(len(test_data)):
+    for j in range(len(test_data[i])):
+        chk = get_corrections(test_data[i][j],probs,vocab)
+        if(((word_cnt not in index) and chk=='Nil') or ((word_cnt in index) and (chk!='Nil'))):
+            corrected+=1
+        else:
+            missed+=1
+        #print(word_cnt,chk)
+        if(word_cnt%1000 == 0):
+            print(word_cnt)
+        word_cnt+=1
+        
+print(corrected)
+print(missed)
+print(corrected*100/(corrected+missed),'%')

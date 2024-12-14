@@ -7,22 +7,23 @@ num_insertion=0
 num_deletion=0
 num_substitution=0
 num_substitution2=0
-
+total_lines=0
 total_words=0
 
 def remove_parenthesis_text(lines):
     # Regular expression to match text within parentheses
-    pattern = r'\(.*?\)'
+    pattern = r'\(.*?\)|<\/?doc.*?>|[^ \u0B80-\u0BFF]'
     
     # Process each line and remove the parenthesis text
     cleaned_lines = [re.sub(pattern, '', line).strip() for line in lines]
     
     return cleaned_lines
 
-with open('sample_500mb.txt', 'r', encoding='utf-8') as file:
+with open('noise.txt', 'r', encoding='utf-8') as file:
     text = file.readlines()
 
 text = remove_parenthesis_text(text)
+total_lines = len(text)
 
 
 
@@ -121,10 +122,12 @@ def transpose(word,next_word=""):
 
 # Create a list of functions
 functions = [insertion, transpose ,substitution1,substitution2, deletion]
+index_arr = []
 
 
 def introduce_errors(text,error_prob):
     punctuations = {'.',',','"',"'"}
+    word_cnt=0
     for i in range(len(text)):
         for j in range(len(text[i])):
             if text[i][j] in punctuations:
@@ -136,25 +139,44 @@ def introduce_errors(text,error_prob):
                     text[i][j]=text[i][j][:-1]
                 if j==len(text[i])-1:
                     chosen_function = random.choices(functions[:4], weights=[10,7,20,7], k=1)[0]
+                    word = text[i][j]
                     text[i][j]=chosen_function(text[i][j])
+                    if(text[i][j]!=word):
+                        index_arr.append(word_cnt)
                 else:
                     chosen_function = random.choices(functions, weights=[10,7,20,7,15], k=1)[0]
+                    word = text[i][j]
                     text[i][j]=chosen_function(text[i][j],text[i][j+1])
+                    if(text[i][j]!=word):
+                        index_arr.append(word_cnt)
                 text[i][j]+=punctuation
+            word_cnt+=1
     for i in range(len(text)):
         text[i]=' '.join(text[i])
     text='\n'.join(text)
-
-    with open('noise_500mb.txt', 'w', encoding='utf-8') as file:
+    print("total words=",word_cnt)
+    with open('2errornoise.txt', 'w', encoding='utf-8') as file:
         file.write(text)
+    
+    # with open('index.txt', 'w') as file:
+    #     file.write(','.join(map(str, index_arr)))
+    
+    with open('index.txt', 'r+', encoding='utf-8') as file:
+        content = file.read().strip()
+        if content:
+            updated_content = content + ',' + ','.join(map(str, index_arr))
+        else:
+            updated_content = ','.join(map(str, index_arr))
+        file.seek(0)
+        file.write(updated_content)
 
 introduce_errors(text,0.5)
 total_errors=(num_substitution2+num_deletion+num_insertion+num_substitution+num_transpose)
-print("total words=",total_words)
+#print("total words=",total_words)
+print("total lines=", total_lines)
 print("insertions=",num_insertion,num_insertion/total_errors*100,"%")
 print("deletions=",num_deletion,num_deletion/total_errors*100,"%")
 print("transpose=",num_transpose,num_transpose/total_errors*100,"%")
 print("substitutions=",num_substitution,num_substitution/total_errors*100,"%")
 print("substitutions2=",num_substitution2,num_substitution2/total_errors*100,"%")
-
 print("percentage=",total_errors/total_words*100,"%")
