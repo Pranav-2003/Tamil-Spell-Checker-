@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamil Virtual Keyboard</title>
+    <script src="https://pyscript.net/latest/pyscript.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        textarea {
+            width: 98%;
+            height: 150px;
+            margin-bottom: 5px;
+            padding: 10px;
+            font-size: 18px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .keyboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+        }
+        .key {
+            display: inline-block;
+            padding: 10px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            user-select: none;
+        }
+        .key:hover {
+            background-color: #0056b3;
+        }
+        .dropdown {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            margin-left: 3px;
+            border: 5px solid #FFF;
+            border-bottom-color: #FF3D00;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            }
+        
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        } 
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tamil Spell Checker</h1>
+        <textarea id="text-box" placeholder="Type here using the virtual Tamil keyboard..."></textarea>
+        <h3 id="l" style="margin-left: 10px; display:none">Checking the word...<span class="spinner"></span></h3>
+        <div id="suggestions" style="margin-left: 10px; margin-bottom: 15px;"></div>
+        <div style="margin-left: 12px;"><b>Or upload a text file to correct errors...</b></div><br>
+        <input type="file" id="fileInput" accept=".txt" style="font-size: 17px; margin-left: 12px; margin-bottom: 10px;" />
+        <button onclick="handleFileUpload()" style="padding: 5px 10px; margin-bottom: 20px;">Upload & Check File</button>
+        <a id="downloadLink" style="display:none; margin-left: 15px; margin-bottom: 20px;">Download Corrected File</a>
+        <div id="loader" style="display: none; margin-left: 15px; margin-top: 10px; margin-bottom: 20px;">Processing file
+        <span class="spinner"></span>   
+        </div>
+        <div class="keyboard" id="keyboard">
+           
+        </div>
+    </div>
+
+    <script>
+        const uyirEzhuthu = ["அ", "ஆ", "இ", "ஈ", "உ", "ஊ", "எ", "ஏ", "ஐ", "ஒ", "ஓ", "ஔ","ஃ"];
+        const meiEzhuthu = ["க்", "ச்", "ட்", "த்", "ப்", "ற்", "ங்", "ஞ்", "ண்", "ந்", "ம்", "ன்", "ய்", "ர்", "ல்", "வ்", "ழ்", "ள்"];
+        const uyirmeiEzhuthu = {
+            "க்": ["க", "கா", "கி", "கீ", "கு", "கூ", "கெ", "கே", "கை", "கொ", "கோ", "கௌ"],
+            "ச்": ["ச", "சா", "சி", "சீ", "சு", "சூ", "செ", "சே", "சை", "சொ", "சோ", "சௌ"],
+            "ட்": ["ட", "டா", "டி", "டீ", "டு", "டூ", "டெ", "டே", "டை", "டொ", "டோ", "டௌ"],
+            "த்": ["த", "தா", "தி", "தீ", "து", "தூ", "தெ", "தே", "தை", "தொ", "தோ", "தௌ"],
+            "ப்": ["ப", "பா", "பி", "பீ", "பு", "பூ", "பெ", "பே", "பை", "பொ", "போ", "பௌ"],
+            "ற்": ["ற", "றா", "றி", "றீ", "று", "றூ", "றெ", "றே", "றை", "றொ", "றோ", "றௌ"],
+            "ங்": ["ங", "ஙா", "ஙி", "ஙீ", "ஙு", "ஙூ", "ஙெ", "ஙே", "ஙை", "ஙொ", "ஙோ", "ஙௌ"],
+            "ஞ்": ["ஞ",	"ஞா", "ஞி", "ஞீ", "ஞு", "ஞூ", "ஞெ", "ஞே", "ஞை", "ஞொ", "ஞோ", "ஞௌ"],
+            "ண்": ["ண", "ணா", "ணி", "ணீ", "ணு", "ணூ", "ணெ", "ணே", "ணை", "ணொ", "ணோ", "ணௌ"],
+            "ந்": ["ந", "நா", "நி", "நீ", "நு", "நூ", "நெ", "நே", "நை", "நொ", "நோ", "நௌ"],
+            "ம்": ["ம", "மா", "மி", "மீ", "மு", "மூ", "மெ",	"மே", "மை", "மொ", "மோ", "மௌ"],
+            "ன்": ["ன", "னா", "னி", "னீ", "னு", "னூ", "னெ", "னே", "னை", "னொ", "னோ", "னௌ"],
+            "ய்": ["ய", "யா", "யி", "யீ", "யு", "யூ", "யெ", "யே", "யை", "யொ", "யோ", "யௌ"],
+            "ர்": ["ர", "ரா", "ரி", "ரீ", "ரு", "ரூ", "ரெ", "ரே", "ரை", "ரொ", "ரோ", "ரௌ"],
+            "ல்": ["ல", "லா", "லி", "லீ", "லு", "லூ", "லெ", "லே", "லை", "லொ", "லோ", "லௌ"],
+            "வ்": ["வ", "வா", "வி", "வீ", "வு", "வூ", "வெ", "வே", "வை", "வொ", "வோ",	"வௌ"],
+            "ழ்": ["ழ", "ழா", "ழி", "ழீ", "ழு", "ழூ", "ழெ", "ழே", "ழை", "ழொ", "ழோ", "ழௌ"],
+            "ள்": ["ள",	"ளா", "ளி",	"ளீ", "ளு", "ளூ", "ளெ", "ளே", "ளை", "ளொ", "ளோ", "ளௌ"]
+        };
+
+        const keyboardDiv = document.getElementById("keyboard");
+        const textBox = document.getElementById("text-box");
+
+        // Uyir Ezhuthu keys
+        uyirEzhuthu.forEach(char => {
+            const button = createKeyButton(char);
+            keyboardDiv.appendChild(button);
+        });
+
+        // Mei Ezhuthu keys
+        meiEzhuthu.forEach(mei => {
+            const meiButton = createKeyButton(mei);
+            meiButton.addEventListener("click", (event) => {
+                // Show dropdown for uyirmei combinations
+                showDropdown(event.target, uyirmeiEzhuthu[mei]);
+            });
+            keyboardDiv.appendChild(meiButton);
+        });
+
+        function createKeyButton(char) {
+            const button = document.createElement("button");
+            button.className = "key";
+            button.textContent = char;
+            button.onclick = () => {
+                textBox.value += char;
+            };
+            return button;
+        }
+
+        // show dropdown for Uyirmei combinations
+        function showDropdown(target, options) {
+            
+            const existingDropdown = document.querySelector(".dropdown");
+            if (existingDropdown) existingDropdown.remove();
+
+            const dropdown = document.createElement("div");
+            dropdown.className = "dropdown";
+
+            options.forEach(option => {
+                const optionButton = createKeyButton(option);
+                optionButton.style.backgroundColor = "#28a745";
+                optionButton.style.color = "white";
+                optionButton.style.margin = "2px";
+                optionButton.onclick = () => {
+                    textBox.value = textBox.value.slice(0, -1);
+                    textBox.value = textBox.value.slice(0, -1);
+                    textBox.value += option;
+                    dropdown.remove(); // Close the dropdown
+                };
+                dropdown.appendChild(optionButton);
+            });
+
+            const rect = target.getBoundingClientRect();
+            dropdown.style.left = `${rect.left}px`;
+            dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+
+            document.body.appendChild(dropdown);
+
+            // Remove dropdown when clicking outside
+            const handleClickOutside = (event) => {
+                if (!dropdown.contains(event.target) && event.target !== target) {
+                    dropdown.remove();
+                    document.removeEventListener("click", handleClickOutside);
+                }
+            };
+            document.addEventListener("click", handleClickOutside);
+        }
+
+        textBox.addEventListener("input", async () => {
+            document.getElementById("suggestions").innerHTML = "";
+            const sentence = textBox.value;
+            if (!sentence.endsWith(" ")) return;
+            const loader = document.getElementById("l");
+            loader.style.display = "block";
+            const response = await fetch("http://127.0.0.1:8000/correct", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sentence })
+            });
+
+            const data = await response.json();
+            loader.style.display = "none";
+            if (data.suggestions.length > 0) {
+                showInlineSuggestions(data.word, data.suggestions);
+            }
+        });
+    
+        function showInlineSuggestions(originalWord, suggestions) {
+        
+            const suggestionDiv = document.getElementById("suggestions");
+            suggestionDiv.innerHTML = "";
+        
+            if (!suggestions.length) {
+                return;
+            }
+        
+            const label = document.createElement("h3");
+            label.textContent = "Suggestions:";
+            suggestionDiv.appendChild(label);
+        
+            const buttonContainer = document.createElement("div");
+            buttonContainer.style.display = "flex";
+            buttonContainer.style.flexWrap = "wrap";
+            buttonContainer.style.gap = "8px";
+            buttonContainer.style.marginTop = "10px";
+        
+            suggestions.forEach((s) => {
+                const btn = document.createElement("button");
+                btn.textContent = s;
+                btn.className = "key";
+                btn.style.backgroundColor = "#6c757d";
+                btn.style.color = "white";
+                btn.onclick = () => {
+                    const textBox = document.getElementById("text-box");
+                    const words = textBox.value.trim().split(/\s+/);
+                    words[words.length - 1] = s;
+                    textBox.value = words.join(" ") + " ";
+                    suggestionDiv.innerHTML = ""; // Clear suggestions after applying
+                };
+                buttonContainer.appendChild(btn);
+            });
+        
+            suggestionDiv.appendChild(buttonContainer);
+        }
+
+        async function handleFileUpload() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+            const loader = document.getElementById("loader");
+            const link = document.getElementById("downloadLink");
+        
+            if (!file) return alert("Please select a text file.");
+        
+            loader.style.display = "inline";  // Show loader
+            link.style.display = "none";     // Hide previous download button
+        
+            const text = await file.text();
+            
+            try {
+                const response = await fetch("http://127.0.0.1:8000/file-correct", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text })
+                });
+        
+                const data = await response.json();
+                const correctedText = data.corrected_text;
+        
+                // Create downloadable blob
+                const blob = new Blob([correctedText], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                link.href = url;
+                link.download = "corrected_text.txt";
+                link.textContent = "Download Corrected File";
+                link.style.display = "inline";
+        
+            } catch (error) {
+                alert("Something went wrong while processing the file.");
+            } finally {
+                loader.style.display = "none";  // Hide loader when done
+            }
+        }
+        
+    </script>
+
+</body>
+</html>
